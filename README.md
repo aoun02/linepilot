@@ -2,7 +2,7 @@
 
 A server-rendered **ASP.NET Core MVC (.NET 10)** application built by **Aoun Raza** for running a factory floor: production dashboard, work orders, machine status with downtime tracking, and raw-material inventory.
 
-🔗 **Live demo:** https://linepilot.vercel.app
+🔗 **Live demo:** https://linepilot-aoun.vercel.app
 > Runs in a container that sleeps when idle, so the first request can take a few seconds. The demo database is in memory and resets to its sample data whenever the server restarts.
 
 ## Features
