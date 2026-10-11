@@ -1,0 +1,95 @@
+@model WorkOrder
+@inject TimeProvider Clock
+@{
+    ViewData["Title"] = Model.Number;
+    var today = DateOnly.FromDateTime(Clock.GetUtcNow().UtcDateTime);
+    var next = WorkOrderService.Transitions[Model.Status];
+    var good = Model.QuantityProduced;
+    var yield = good + Model.QuantityScrapped == 0 ? 100 : good * 100.0 / (good + Model.QuantityScrapped);
+}
+
+<a class="lp-back" asp-action="Index">← Work orders</a>
+<div class="lp-head">
+    <div>
+        <p class="lp-eyebrow">@Model.Product.Sku · @Model.Line.Name</p>
+        <h1>@Model.Number <partial name="_OrderStatus" model="Model.Status" /></h1>
+    </div>
+    @if (Model.IsOpen)
+    {
+        <a class="btn lp-btn-ghost" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+    }
+</div>
+
+<div class="lp-grid lp-grid--wide">
+    <div class="lp-card">
+        <h2>@Model.Product.Name</h2>
+        <div class="lp-progress-big">
+            <div class="lp-progress-big__nums">
+                <span><strong>@good.ToString("N0")</strong> of @Model.QuantityPlanned.ToString("N0") units</span>
+                <span class="text-muted">@Model.ProgressPercent%</span>
+            </div>
+            <div class="lp-meter"><span style="width:@Model.ProgressPercent%"></span></div>
+        </div>
+        <dl class="lp-facts">
+            <div><dt>Priority</dt><dd><partial name="_Priority" model="Model.Priority" /></dd></div>
+            <div><dt>Due</dt><dd class="@(Model.IsOverdue(today) ? "is-bad fw-semibold" : "")">@Model.DueDate.ToString("ddd d MMM yyyy")@(Model.IsOverdue(today) ? " · overdue" : "")</dd></div>
+            <div><dt>Scrapped</dt><dd>@Model.QuantityScrapped.ToString("N0") units</dd></div>
+            <div><dt>First-pass yield</dt><dd>@yield.ToString("0.0")%</dd></div>
+            <div><dt>Created</dt><dd>@Model.CreatedAt.ToString("d MMM yyyy")</dd></div>
+            <div><dt>Started</dt><dd>@(Model.StartedAt?.ToString("d MMM, HH:mm") ?? "—")</dd></div>
+            <div><dt>Completed</dt><dd>@(Model.CompletedAt?.ToString("d MMM, HH:mm") ?? "—")</dd></div>
+        </dl>
+        @if (Model.Notes is not null)
+        {
+            <p class="lp-notes"><strong>Notes:</strong> @Model.Notes</p>
+        }
+    </div>
+
+    <div class="d-flex flex-column gap-3">
+        <div class="lp-card">
+            <h2>Change status</h2>
+            @if (next.Length == 0)
+            {
+                <p class="text-muted mb-0">This order is closed. No further changes are possible.</p>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var s in next)
+                    {
+                        var (label, css) = s switch
+                        {
+                            WorkOrderStatus.InProgress => (Model.Status == WorkOrderStatus.OnHold ? "Resume" : "Start production", "lp-btn"),
+                            WorkOrderStatus.OnHold => ("Put on hold", "lp-btn-ghost"),
+                            WorkOrderStatus.Completed => ("Complete order", "lp-btn"),
+                            _ => ("Cancel order", "lp-btn-danger"),
+                        };
+                        <form method="post" asp-action="ChangeStatus" asp-route-id="@Model.Id">
+                            <input type="hidden" name="status" value="@s" />
+                            <button class="btn @css">@label</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (Model.Status == WorkOrderStatus.InProgress)
+        {
+            <form class="lp-card" method="post" asp-action="RecordOutput" asp-route-id="@Model.Id">
+                <h2>Record shift output</h2>
+                <p class="text-muted small">@((Model.QuantityPlanned - Model.QuantityProduced).ToString("N0")) units left to produce.</p>
+                <div class="row g-2">
+                    <div class="col-6 lp-field">
+                        <label for="Produced">Good units</label>
+                        <input id="Produced" name="Produced" type="number" min="0" max="@(Model.QuantityPlanned - Model.QuantityProduced)" value="0" class="form-control" />
+                    </div>
+                    <div class="col-6 lp-field">
+                        <label for="Scrapped">Scrapped</label>
+                        <input id="Scrapped" name="Scrapped" type="number" min="0" value="0" class="form-control" />
+                    </div>
+                </div>
+                <button class="btn lp-btn w-100 mt-2">Save output</button>
+            </form>
+        }
+    </div>
+</div>

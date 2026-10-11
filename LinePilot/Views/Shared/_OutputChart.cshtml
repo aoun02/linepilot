@@ -1,0 +1,55 @@
+@model List<DayOutput>
+@* Daily output as columns with the plant target as a reference line. Pure HTML/CSS so the text stays
+   readable at every screen size; values are in each column's tooltip and in the hidden table. *@
+@{
+    var target = Model.Count > 0 ? Model.Max(d => d.Target) : 0;
+    var rawMax = Math.Max(target, Model.Count > 0 ? Model.Max(d => d.Produced) : 0) * 1.08;
+    var step = rawMax <= 2000 ? 500 : rawMax <= 4000 ? 1000 : 2000;
+    var yMax = (int)(Math.Ceiling(rawMax / step) * step);
+    var ticks = Enumerable.Range(0, yMax / step + 1).Select(i => i * step).Reverse().ToList();
+    double Pct(int v) => yMax == 0 ? 0 : v * 100.0 / yMax;
+    var lastIndex = Model.Count - 1;
+}
+<div class="lp-chart" role="img" aria-label="Units produced per day for the last 14 days against the daily target of @target.ToString("N0")">
+    <div class="lp-chart__y" aria-hidden="true">
+        @foreach (var t in ticks)
+        {
+            <span style="bottom:@Pct(t).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%">@(t >= 1000 ? $"{t / 1000.0:0.#}K" : t.ToString())</span>
+        }
+    </div>
+    <div class="lp-chart__plot">
+        @foreach (var t in ticks)
+        {
+            <span class="lp-chart__grid" style="bottom:@Pct(t).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%" aria-hidden="true"></span>
+        }
+        <span class="lp-chart__target" style="bottom:@Pct(target).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%" aria-hidden="true">
+            <span>Target @target.ToString("N0")</span>
+        </span>
+        <div class="lp-chart__cols">
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                var d = Model[i];
+                var isToday = i == lastIndex;
+                <div class="lp-chart__col" tabindex="0">
+                    <span class="lp-chart__bar @(isToday ? "is-partial" : "")" style="height:@Pct(d.Produced).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></span>
+                    <span class="lp-chart__tip">
+                        <span class="text-muted">@d.Date.ToString("ddd d MMM")@(isToday ? " · so far" : "")</span>
+                        <strong>@d.Produced.ToString("N0") units</strong>
+                        <span>@(d.Target == 0 ? 0 : d.Produced * 100 / d.Target)% of target</span>
+                    </span>
+                    <span class="lp-chart__x @(i % 2 == 1 && !isToday ? "lp-chart__x--minor" : "")">@(isToday ? "Today" : d.Date.ToString("d MMM"))</span>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<table class="visually-hidden">
+    <caption>Daily output</caption>
+    <thead><tr><th>Date</th><th>Produced</th><th>Target</th></tr></thead>
+    <tbody>
+        @foreach (var d in Model)
+        {
+            <tr><td>@d.Date</td><td>@d.Produced</td><td>@d.Target</td></tr>
+        }
+    </tbody>
+</table>

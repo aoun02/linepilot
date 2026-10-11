@@ -1,0 +1,11 @@
+@model WorkOrderStatus
+@{
+    var css = Model.ToString().ToLower();
+    var label = Model switch
+    {
+        WorkOrderStatus.InProgress => "In progress",
+        WorkOrderStatus.OnHold => "On hold",
+        _ => Model.ToString(),
+    };
+}
+<span class="lp-pill lp-pill--@css">@label</span>

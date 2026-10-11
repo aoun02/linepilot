@@ -1,0 +1,14 @@
+@if (TempData["Success"] is string success)
+{
+    <div class="alert lp-alert lp-alert--ok alert-dismissible fade show" role="status">
+        <strong>✓</strong> @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert lp-alert lp-alert--error alert-dismissible fade show" role="alert">
+        <strong>!</strong> @error
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}

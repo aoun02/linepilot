@@ -1,0 +1,62 @@
+@model List<Material>
+@{
+    ViewData["Title"] = "Inventory";
+    var lowOnly = ViewData["LowOnly"] is true;
+    var lowCount = Model.Count(m => m.IsLow);
+}
+
+<div class="lp-head">
+    <div>
+        <h1>Inventory</h1>
+        <p class="text-muted mb-0">Raw materials, components and packaging. Items at or below their reorder level are flagged.</p>
+    </div>
+    <nav class="lp-tabs mb-0" aria-label="Filter materials">
+        <a class="@(!lowOnly ? "active" : "")" asp-action="Index">All</a>
+        <a class="@(lowOnly ? "active" : "")" asp-action="Index" asp-route-low="true">Low stock</a>
+    </nav>
+</div>
+
+@if (!lowOnly && lowCount > 0)
+{
+    <div class="alert lp-alert lp-alert--warn" role="status"><strong>!</strong> @lowCount material@(lowCount == 1 ? " is" : "s are") at or below the reorder level.</div>
+}
+
+<div class="lp-card p-0">
+    <div class="table-responsive">
+        <table class="table lp-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Material</th>
+                    <th class="text-end">On hand</th>
+                    <th class="d-none d-md-table-cell">Stock level</th>
+                    <th class="text-end d-none d-lg-table-cell">Value</th>
+                    <th>Receive stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model)
+                {
+                    var level = m.ReorderLevel == 0 ? 100 : (int)Math.Min(100, m.OnHand / (m.ReorderLevel * 3) * 100);
+                    <tr class="@(m.IsLow ? "is-low" : "")">
+                        <td>
+                            <span class="fw-semibold">@m.Name</span>
+                            @if (m.IsLow) { <span class="lp-pill lp-pill--low">Reorder</span> }
+                            <br /><span class="text-muted small">@m.Code</span>
+                        </td>
+                        <td class="text-end text-nowrap"><strong>@m.OnHand.ToString("N0")</strong> @m.Unit<br /><span class="text-muted small">min @m.ReorderLevel.ToString("N0")</span></td>
+                        <td class="d-none d-md-table-cell" style="min-width:140px">
+                            <div class="lp-meter lp-meter--sm @(m.IsLow ? "lp-meter--bad" : "")"><span style="width:@level%"></span></div>
+                        </td>
+                        <td class="text-end d-none d-lg-table-cell">@((m.OnHand * m.UnitCost).ToString("C0", System.Globalization.CultureInfo.GetCultureInfo("en-US")))</td>
+                        <td>
+                            <form class="lp-receive" method="post" asp-action="Receive" asp-route-id="@m.Id" asp-route-low="@lowOnly">
+                                <input name="Quantity" type="number" min="0.01" step="any" class="form-control form-control-sm" placeholder="Qty" aria-label="Quantity of @m.Name to receive" required />
+                                <button class="btn lp-btn btn-sm">Add</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

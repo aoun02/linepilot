@@ -1,0 +1,48 @@
+@model List<ProductionLine>
+@inject TimeProvider Clock
+@{
+    ViewData["Title"] = "Machines";
+    var now = Clock.GetUtcNow().UtcDateTime;
+    string Since(DateTime t)
+    {
+        var span = now - t;
+        return span.TotalHours >= 1 ? $"{(int)span.TotalHours}h {span.Minutes}m" : $"{span.Minutes}m";
+    }
+}
+
+<div class="lp-head">
+    <div>
+        <h1>Machines</h1>
+        <p class="text-muted mb-0">Live status of every asset on the shop floor, grouped by line.</p>
+    </div>
+    <div class="lp-legend" aria-label="Status legend">
+        <partial name="_MachineStatus" model="MachineStatus.Running" />
+        <partial name="_MachineStatus" model="MachineStatus.Idle" />
+        <partial name="_MachineStatus" model="MachineStatus.Maintenance" />
+        <partial name="_MachineStatus" model="MachineStatus.Down" />
+    </div>
+</div>
+
+@foreach (var line in Model)
+{
+    <section class="lp-line">
+        <h2>@line.Name <span class="text-muted">· @line.Code · target @line.DailyTarget.ToString("N0")/day</span></h2>
+        <div class="lp-machines">
+            @foreach (var m in line.Machines.OrderBy(m => m.Code))
+            {
+                <a class="lp-card lp-machine lp-machine--@m.Status.ToString().ToLower()" asp-action="Details" asp-route-id="@m.Id">
+                    <div class="lp-machine__top">
+                        <span class="lp-machine__code">@m.Code</span>
+                        <partial name="_MachineStatus" model="m.Status" />
+                    </div>
+                    <span class="lp-machine__name">@m.Name</span>
+                    <span class="text-muted small">@m.Type · for @Since(m.StatusSince)</span>
+                    <div class="lp-machine__util">
+                        <span class="small">Utilization today <strong>@m.UtilizationToday%</strong></span>
+                        <div class="lp-meter lp-meter--sm"><span style="width:@m.UtilizationToday%"></span></div>
+                    </div>
+                </a>
+            }
+        </div>
+    </section>
+}

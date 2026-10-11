@@ -1,0 +1,131 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="lp-head">
+    <div>
+        <p class="lp-eyebrow">Plant overview · @Model.Today.ToString("dddd, d MMMM")</p>
+        <h1>Good shift, supervisor</h1>
+    </div>
+    <a class="btn lp-btn" asp-controller="WorkOrders" asp-action="Create">+ New work order</a>
+</div>
+
+<section class="lp-kpis">
+    <div class="lp-card lp-kpi">
+        <span class="lp-kpi__label">Output today</span>
+        <span class="lp-kpi__value">@Model.TodayProduced.ToString("N0")</span>
+        <span class="lp-kpi__sub">of @Model.TodayTarget.ToString("N0") target · @Model.AttainmentPercent%</span>
+        <div class="lp-meter" role="progressbar" aria-valuenow="@Model.AttainmentPercent" aria-valuemin="0" aria-valuemax="100" aria-label="Target attainment">
+            <span style="width:@Math.Min(100, Model.AttainmentPercent)%"></span>
+        </div>
+    </div>
+    <div class="lp-card lp-kpi">
+        <span class="lp-kpi__label">Scrap rate today</span>
+        <span class="lp-kpi__value">@Model.ScrapRatePercent.ToString("0.0")%</span>
+        <span class="lp-kpi__sub @(Model.ScrapRatePercent > 3 ? "is-bad" : "is-good")">
+            @(Model.ScrapRatePercent > 3 ? "▲ Above 3% limit" : "✓ Within 3% limit")
+        </span>
+    </div>
+    <div class="lp-card lp-kpi">
+        <span class="lp-kpi__label">Machines running</span>
+        <span class="lp-kpi__value">@Model.MachinesRunning<small>/@Model.MachinesTotal</small></span>
+        <a class="lp-kpi__sub lp-link" asp-controller="Machines" asp-action="Index">@Model.ActiveDowntime.Count stopped · view floor →</a>
+    </div>
+    <div class="lp-card lp-kpi">
+        <span class="lp-kpi__label">Open work orders</span>
+        <span class="lp-kpi__value">@Model.OpenOrders</span>
+        <span class="lp-kpi__sub @(Model.OverdueOrders > 0 ? "is-bad" : "is-good")">
+            @(Model.OverdueOrders > 0 ? $"▲ {Model.OverdueOrders} overdue" : "✓ None overdue")
+        </span>
+    </div>
+</section>
+
+<section class="lp-grid lp-grid--wide">
+    <div class="lp-card">
+        <div class="lp-card__head">
+            <h2>Daily output · last 14 days</h2>
+        </div>
+        <partial name="_OutputChart" model="Model.Trend" />
+    </div>
+    <div class="lp-card">
+        <div class="lp-card__head">
+            <h2>Lines today</h2>
+        </div>
+        <ul class="lp-lines">
+            @foreach (var line in Model.LinesToday)
+            {
+                <li>
+                    <div class="lp-lines__row">
+                        <span>@line.Line</span>
+                        <span><strong>@line.Produced.ToString("N0")</strong> <span class="text-muted">/ @line.Target.ToString("N0")</span></span>
+                    </div>
+                    <div class="lp-meter" role="progressbar" aria-valuenow="@line.Percent" aria-valuemin="0" aria-valuemax="100" aria-label="@line.Line attainment">
+                        <span style="width:@Math.Min(100, line.Percent)%"></span>
+                    </div>
+                </li>
+            }
+        </ul>
+        <h3 class="lp-subhead">Stopped right now</h3>
+        @if (Model.ActiveDowntime.Count == 0)
+        {
+            <p class="text-muted small">Every machine is available.</p>
+        }
+        <ul class="lp-downtime">
+            @foreach (var d in Model.ActiveDowntime)
+            {
+                var mins = (int)d.Duration(Model.Now).TotalMinutes;
+                <li>
+                    <a asp-controller="Machines" asp-action="Details" asp-route-id="@d.MachineId">
+                        <partial name="_MachineStatus" model="d.Kind" />
+                        <span class="lp-downtime__name">@d.Machine.Code · @d.Machine.Name</span>
+                        <span class="text-muted small">@d.Reason · @(mins >= 60 ? $"{mins / 60}h {mins % 60}m" : $"{mins}m")</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+</section>
+
+<section class="lp-grid">
+    <div class="lp-card">
+        <div class="lp-card__head">
+            <h2>Machine floor</h2>
+            <a class="lp-link small" asp-controller="Machines" asp-action="Index">All machines →</a>
+        </div>
+        <div class="lp-floor">
+            @foreach (var m in Model.Machines)
+            {
+                <a class="lp-floor__tile lp-floor__tile--@m.Status.ToString().ToLower()" asp-controller="Machines" asp-action="Details" asp-route-id="@m.Id">
+                    <span class="lp-floor__code">@m.Code</span>
+                    <partial name="_MachineStatus" model="m.Status" />
+                </a>
+            }
+        </div>
+    </div>
+    <div class="lp-card">
+        <div class="lp-card__head">
+            <h2>Needs attention</h2>
+            <a class="lp-link small" asp-controller="WorkOrders" asp-action="Index">All orders →</a>
+        </div>
+        <ul class="lp-orders">
+            @foreach (var o in Model.PriorityOrders)
+            {
+                <li>
+                    <a asp-controller="WorkOrders" asp-action="Details" asp-route-id="@o.Id">
+                        <span>
+                            <strong>@o.Number</strong> <span class="text-muted">· @o.Product.Name</span><br />
+                            <span class="small @(o.IsOverdue(Model.Today) ? "is-bad" : "text-muted")">
+                                Due @o.DueDate.ToString("d MMM")@(o.IsOverdue(Model.Today) ? " · overdue" : "")
+                            </span>
+                        </span>
+                        <span class="lp-orders__side">
+                            <partial name="_Priority" model="o.Priority" />
+                            <partial name="_OrderStatus" model="o.Status" />
+                        </span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+</section>

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="LinePilot.Tests/LinePilot.Tests.csproj" />
+  <Project Path="LinePilot/LinePilot.csproj" />
+</Solution>

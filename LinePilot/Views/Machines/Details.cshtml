@@ -1,0 +1,88 @@
+@model Machine
+@inject TimeProvider Clock
+@{
+    ViewData["Title"] = Model.Code;
+    var now = Clock.GetUtcNow().UtcDateTime;
+    string Dur(TimeSpan s) => s.TotalHours >= 1 ? $"{(int)s.TotalHours}h {s.Minutes}m" : $"{Math.Max(1, s.Minutes)}m";
+    var week = Model.DowntimeEvents.Where(e => e.StartedAt >= now.AddDays(-7)).ToList();
+    var weekMinutes = (int)week.Sum(e => e.Duration(now).TotalMinutes);
+}
+
+<a class="lp-back" asp-action="Index">← Machines</a>
+<div class="lp-head">
+    <div>
+        <p class="lp-eyebrow">@Model.Line.Name · @Model.Type</p>
+        <h1>@Model.Code · @Model.Name</h1>
+    </div>
+    <partial name="_MachineStatus" model="Model.Status" />
+</div>
+
+<div class="lp-grid lp-grid--wide">
+    <div class="d-flex flex-column gap-3">
+        <div class="lp-kpis lp-kpis--3">
+            <div class="lp-card lp-kpi">
+                <span class="lp-kpi__label">In current status</span>
+                <span class="lp-kpi__value">@Dur(now - Model.StatusSince)</span>
+            </div>
+            <div class="lp-card lp-kpi">
+                <span class="lp-kpi__label">Downtime · 7 days</span>
+                <span class="lp-kpi__value">@Dur(TimeSpan.FromMinutes(weekMinutes))</span>
+                <span class="lp-kpi__sub">@week.Count stop@(week.Count == 1 ? "" : "s")</span>
+            </div>
+            <div class="lp-card lp-kpi">
+                <span class="lp-kpi__label">Last maintenance</span>
+                <span class="lp-kpi__value lp-kpi__value--sm">@Model.LastMaintenance.ToString("d MMM")</span>
+                <span class="lp-kpi__sub">@(DateOnly.FromDateTime(now).DayNumber - Model.LastMaintenance.DayNumber) days ago</span>
+            </div>
+        </div>
+
+        <div class="lp-card p-0">
+            <h2 class="px-3 pt-3">Downtime log</h2>
+            @if (Model.DowntimeEvents.Count == 0)
+            {
+                <p class="lp-empty-row">No stops recorded.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table lp-table align-middle mb-0">
+                        <thead><tr><th>Type</th><th>Reason</th><th>Started</th><th>Duration</th></tr></thead>
+                        <tbody>
+                            @foreach (var e in Model.DowntimeEvents)
+                            {
+                                <tr>
+                                    <td><partial name="_MachineStatus" model="e.Kind" /></td>
+                                    <td>@e.Reason</td>
+                                    <td class="text-nowrap">@e.StartedAt.ToString("d MMM, HH:mm")</td>
+                                    <td class="text-nowrap">@Dur(e.Duration(now))@(e.EndedAt is null ? " · ongoing" : "")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <form class="lp-card lp-form align-self-start" method="post" asp-action="ChangeStatus" asp-route-id="@Model.Id">
+        <h2>Change status</h2>
+        <p class="text-muted small">Stopping a machine opens a downtime entry; starting it again closes it.</p>
+        <fieldset class="lp-field">
+            <legend class="visually-hidden">New status</legend>
+            <div class="lp-segmented">
+                @foreach (var s in Enum.GetValues<MachineStatus>())
+                {
+                    <label>
+                        <input type="radio" name="Status" value="@s" checked="@(s == Model.Status)" />
+                        <partial name="_MachineStatus" model="s" />
+                    </label>
+                }
+            </div>
+        </fieldset>
+        <div class="lp-field mt-3">
+            <label for="Reason">Reason <span class="text-muted">(required for Down / Maintenance)</span></label>
+            <input id="Reason" name="Reason" class="form-control" maxlength="120" placeholder="e.g. Coolant leak, scheduled service…" />
+        </div>
+        <button class="btn lp-btn w-100 mt-3">Update status</button>
+    </form>
+</div>

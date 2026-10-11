@@ -1,0 +1,4 @@
+**/bin
+**/obj
+LinePilot.Tests
+.vs

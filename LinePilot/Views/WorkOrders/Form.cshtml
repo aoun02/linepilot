@@ -1,0 +1,68 @@
+@model WorkOrderForm
+@{
+    var editing = Model.Id is not null;
+    ViewData["Title"] = editing ? $"Edit {Model.Number}" : "New work order";
+}
+
+<a class="lp-back" asp-action="@(editing ? "Details" : "Index")" asp-route-id="@Model.Id">← @(editing ? Model.Number : "Work orders")</a>
+<div class="lp-head">
+    <h1>@ViewData["Title"]</h1>
+</div>
+
+<form class="lp-card lp-form" method="post" asp-action="@(editing ? "Edit" : "Create")" asp-route-id="@Model.Id" novalidate>
+    <div asp-validation-summary="ModelOnly" class="lp-alert lp-alert--error alert" role="alert"></div>
+    <input type="hidden" asp-for="Number" />
+
+    <div class="row g-3">
+        <div class="col-md-6 lp-field">
+            <label asp-for="ProductId"></label>
+            <select asp-for="ProductId" class="form-select">
+                <option value="0">Choose a product…</option>
+                @foreach (var p in Model.Products)
+                {
+                    <option value="@p.Id">@p.Sku · @p.Name</option>
+                }
+            </select>
+            <span asp-validation-for="ProductId" class="lp-error"></span>
+        </div>
+        <div class="col-md-6 lp-field">
+            <label asp-for="LineId"></label>
+            <select asp-for="LineId" class="form-select">
+                <option value="0">Choose a line…</option>
+                @foreach (var l in Model.Lines)
+                {
+                    <option value="@l.Id">@l.Name</option>
+                }
+            </select>
+            <span asp-validation-for="LineId" class="lp-error"></span>
+        </div>
+        <div class="col-md-4 lp-field">
+            <label asp-for="QuantityPlanned"></label>
+            <input asp-for="QuantityPlanned" class="form-control" type="number" min="10" step="10" />
+            <span asp-validation-for="QuantityPlanned" class="lp-error"></span>
+        </div>
+        <div class="col-md-4 lp-field">
+            <label asp-for="Priority"></label>
+            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<Priority>()" class="form-select"></select>
+        </div>
+        <div class="col-md-4 lp-field">
+            <label asp-for="DueDate"></label>
+            <input asp-for="DueDate" class="form-control" type="date" />
+            <span asp-validation-for="DueDate" class="lp-error"></span>
+        </div>
+        <div class="col-12 lp-field">
+            <label asp-for="Notes"></label>
+            <textarea asp-for="Notes" class="form-control" rows="3" maxlength="200" placeholder="Customer, special instructions…"></textarea>
+            <span asp-validation-for="Notes" class="lp-error"></span>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <button class="btn lp-btn">@(editing ? "Save changes" : "Create work order")</button>
+        <a class="btn lp-btn-ghost" asp-action="@(editing ? "Details" : "Index")" asp-route-id="@Model.Id">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

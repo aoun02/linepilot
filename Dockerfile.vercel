@@ -1,0 +1,24 @@
+# Vercel builds this image on its own servers (no Docker needed on your PC) and runs it as a
+# Vercel Function. Stage 1 publishes the app with the .NET SDK, stage 2 runs it on the slim ASP.NET image.
+
+# ---------- build ----------
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY LinePilot/LinePilot.csproj LinePilot/
+RUN dotnet restore LinePilot/LinePilot.csproj
+COPY LinePilot/ LinePilot/
+RUN dotnet publish LinePilot/LinePilot.csproj -c Release -o /app --no-restore
+
+# ---------- run ----------
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app .
+
+# Vercel sends traffic to port 80; Program.cs listens on $PORT.
+ENV PORT=80 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_TieredPGO=0 \
+    DOTNET_TC_QuickJitForLoops=1
+EXPOSE 80
+
+ENTRYPOINT ["dotnet", "LinePilot.dll"]

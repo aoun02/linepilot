@@ -1,0 +1,12 @@
+@model MachineStatus
+@* Status is shown with an icon + text, never colour alone. *@
+@{
+    var (icon, css) = Model switch
+    {
+        MachineStatus.Running => ("▶", "running"),
+        MachineStatus.Idle => ("❚❚", "idle"),
+        MachineStatus.Maintenance => ("🔧", "maintenance"),
+        _ => ("■", "down"),
+    };
+}
+<span class="lp-status lp-status--@css"><span aria-hidden="true">@icon</span> @Model</span>

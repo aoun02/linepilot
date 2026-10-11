@@ -1,0 +1,103 @@
+@model WorkOrderListViewModel
+@{
+    ViewData["Title"] = "Work orders";
+    var all = Model.StatusCounts.Values.Sum();
+}
+
+<div class="lp-head">
+    <div>
+        <h1>Work orders</h1>
+        <p class="text-muted mb-0">Plan, start and close production runs across every line.</p>
+    </div>
+    <a class="btn lp-btn" asp-action="Create">+ New work order</a>
+</div>
+
+<nav class="lp-tabs" aria-label="Filter by status">
+    <a class="@(Model.Status is null ? "active" : "")" asp-action="Index" asp-route-lineId="@Model.LineId" asp-route-search="@Model.Search">All <span>@all</span></a>
+    @foreach (var s in Enum.GetValues<WorkOrderStatus>())
+    {
+        <a class="@(Model.Status == s ? "active" : "")" asp-action="Index" asp-route-status="@s" asp-route-lineId="@Model.LineId" asp-route-search="@Model.Search">
+            @(s switch { WorkOrderStatus.InProgress => "In progress", WorkOrderStatus.OnHold => "On hold", _ => s.ToString() })
+            <span>@Model.StatusCounts.GetValueOrDefault(s)</span>
+        </a>
+    }
+</nav>
+
+<form class="lp-card lp-filters" method="get" asp-action="Index">
+    <input type="hidden" name="status" value="@Model.Status" />
+    <div class="lp-field lp-field--grow">
+        <label for="search">Search</label>
+        <input id="search" name="search" class="form-control" value="@Model.Search" placeholder="Order number, product or SKU…" />
+    </div>
+    <div class="lp-field">
+        <label for="lineId">Line</label>
+        <select id="lineId" name="lineId" class="form-select">
+            <option value="">All lines</option>
+            @foreach (var l in Model.Lines)
+            {
+                <option value="@l.Id" selected="@(Model.LineId == l.Id)">@l.Name</option>
+            }
+        </select>
+    </div>
+    <div class="lp-field lp-field--actions">
+        <button class="btn lp-btn">Apply</button>
+        <a class="btn lp-btn-ghost" asp-action="Index">Reset</a>
+    </div>
+</form>
+
+<div class="lp-card p-0">
+    @if (Model.Items.Count == 0)
+    {
+        <p class="lp-empty-row">No work orders match these filters.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table lp-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Product</th>
+                        <th class="d-none d-lg-table-cell">Line</th>
+                        <th>Progress</th>
+                        <th class="d-none d-md-table-cell">Priority</th>
+                        <th>Due</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model.Items)
+                    {
+                        <tr>
+                            <td><a class="lp-link fw-semibold" asp-action="Details" asp-route-id="@o.Id">@o.Number</a></td>
+                            <td>@o.Product.Name<br /><span class="text-muted small">@o.Product.Sku</span></td>
+                            <td class="d-none d-lg-table-cell">@o.Line.Name</td>
+                            <td class="lp-progress-cell">
+                                <div class="lp-meter lp-meter--sm"><span style="width:@o.ProgressPercent%"></span></div>
+                                <span class="small text-muted">@o.QuantityProduced.ToString("N0") / @o.QuantityPlanned.ToString("N0")</span>
+                            </td>
+                            <td class="d-none d-md-table-cell"><partial name="_Priority" model="o.Priority" /></td>
+                            <td class="@(o.IsOverdue(Model.Today) ? "is-bad fw-semibold" : "")">
+                                @o.DueDate.ToString("d MMM")
+                                @if (o.IsOverdue(Model.Today))
+                                {
+                                    <br /><span class="small">overdue</span>
+                                }
+                            </td>
+                            <td><partial name="_OrderStatus" model="o.Status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <div class="lp-pager">
+        <span class="text-muted small">@Model.TotalCount orders · page @Model.Page of @Model.TotalPages</span>
+        <div class="d-flex gap-2">
+            <a class="btn lp-btn-ghost btn-sm @(Model.Page <= 1 ? "disabled" : "")" asp-action="Index"
+               asp-route-status="@Model.Status" asp-route-lineId="@Model.LineId" asp-route-search="@Model.Search" asp-route-page="@(Model.Page - 1)">← Previous</a>
+            <a class="btn lp-btn-ghost btn-sm @(Model.Page >= Model.TotalPages ? "disabled" : "")" asp-action="Index"
+               asp-route-status="@Model.Status" asp-route-lineId="@Model.LineId" asp-route-search="@Model.Search" asp-route-page="@(Model.Page + 1)">Next →</a>
+        </div>
+    </div>
+</div>
